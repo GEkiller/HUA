@@ -46,73 +46,6 @@ default_cfgs = {
     'volo_large': _cfg(crop_pct=1.15),
 }
 
-
-# class ShiftViTBlock(nn.Module):
-#
-#     def __init__(self,
-#                  dim,
-#                  n_div=12,
-#                  mlp_ratio=4.,
-#                  drop=0.,
-#                  drop_path=0.,
-#                  act_layer=nn.GELU,
-#                  norm_layer=nn.LayerNorm,
-#                  input_resolution=None):
-#         """ The building block of Shift-ViT network.
-#
-#         Args:
-#             dim (int): feature dimension
-#             n_div (int): how many divisions are used. Totally, 4/n_div of
-#                 channels will be shifted.
-#             mlp_ratio (float): expand ratio of MLP network.
-#             drop (float): drop out prob.
-#             drop_path (float): drop path prob.
-#             act_layer (callable): activation function class type.
-#             norm_layer (callable): normalization layer class type.
-#             input_resolution (tuple): input resolution. This optional variable
-#                 is used to calculate the flops.
-#
-#         """
-#         super(ShiftViTBlock, self).__init__()
-#         self.dim = dim
-#         self.input_resolution = input_resolution
-#         self.mlp_ratio = mlp_ratio
-#
-#         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-#         self.norm2 = norm_layer(dim)
-#         mlp_hidden_dim = int(dim * mlp_ratio)
-#         self.mlp = Mlp(in_features=dim,
-#                        hidden_features=mlp_hidden_dim,
-#                        act_layer=act_layer,
-#                        drop=drop)
-#         self.n_div = n_div
-#
-#     def forward(self, x):
-#         x = self.shift_feat(x, self.n_div)
-#         shortcut = x
-#         x = shortcut + self.drop_path(self.mlp(self.norm2(x)))
-#         return x
-#
-#     def extra_repr(self) -> str:
-#         return f"dim={self.dim}," \
-#                f"input_resolution={self.input_resolution}," \
-#                f"shift percentage={4.0 / self.n_div * 100}%."
-#
-#     @staticmethod
-#     def shift_feat(x, n_div):
-#         B, C, H, W = x.shape
-#         g = C // n_div
-#         out = torch.zeros_like(x)
-#
-#         out[:, g * 0:g * 1, :, :-1] = x[:, g * 0:g * 1, :, 1:]  # shift left
-#         out[:, g * 1:g * 2, :, 1:] = x[:, g * 1:g * 2, :, :-1]  # shift right
-#         out[:, g * 2:g * 3, :-1, :] = x[:, g * 2:g * 3, 1:, :]  # shift up
-#         out[:, g * 3:g * 4, 1:, :] = x[:, g * 3:g * 4, :-1, :]  # shift down
-#
-#         out[:, g * 4:, :, :] = x[:, g * 4:, :, :]  # no shift
-#         return out
-
-
 class AssistantLayer(nn.Module):
     def __init__(self, dim, drop=0.3, assist_cls=3):
         super().__init__()
@@ -287,48 +220,6 @@ class IntensiveBlock(nn.Module):
                       padding=1, bias=False)
         )
 
-        # self.Reduction = nn.Sequential(
-        #     nn.Conv2d(dim, hidden_dim, kernel_size=1, stride=stem_stride,
-        #               padding=0, bias=False),
-        #     nn.BatchNorm2d(hidden_dim),
-        #     nn.ReLU(inplace=True)
-        # )
-
-        # self.SecReduction = nn.Sequential(
-        #     nn.Conv2d(2 * hidden_dim, hidden_dim, kernel_size=1, stride=stem_stride,
-        #               padding=0, bias=False),
-        #     nn.BatchNorm2d(hidden_dim),
-        #     nn.ReLU(inplace=True)
-        # )
-        #
-        # self.ThiReduction = nn.Sequential(
-        #     nn.Conv2d(4 * hidden_dim, 2 * hidden_dim, kernel_size=1, stride=stem_stride,
-        #               padding=0, bias=False),
-        #     nn.BatchNorm2d(2 * hidden_dim),
-        #     nn.ReLU(inplace=True)
-        # )
-        #
-        # self.LargeConv = nn.Sequential(
-        #     nn.Conv2d(hidden_dim, 2 * hidden_dim, kernel_size=7, stride=stem_stride,
-        #               padding=3, bias=False),
-        #     nn.BatchNorm2d(2 * hidden_dim),
-        #     nn.ReLU(inplace=True)
-        # )
-        #
-        # self.MediumConv = nn.Sequential(
-        #     nn.Conv2d(hidden_dim, 2 * hidden_dim, kernel_size=5, stride=stem_stride,
-        #               padding=2, bias=False),
-        #     nn.BatchNorm2d(2 * hidden_dim),
-        #     nn.ReLU(inplace=True)
-        # )
-        #
-        # self.SmallConv = nn.Sequential(
-        #     nn.Conv2d(hidden_dim, 2 * hidden_dim, kernel_size=3, stride=stem_stride,
-        #               padding=1, bias=False),
-        #     nn.BatchNorm2d(2 * hidden_dim),
-        #     nn.ReLU(inplace=True)
-        # )
-
         self.Concat = torch.cat
         # self.Liner_1 = nn.Linear(2 * hidden_dim, dim)
         # self.norm = nn.LayerNorm(4 * hidden_dim)
@@ -346,46 +237,6 @@ class IntensiveBlock(nn.Module):
         x = self.Concat((feature, x), dim=1)
         # x = x.permute(0, 2, 3, 1)
         return x
-
-        # x = self.Reduction(x)
-
-        # First Time
-        # x_L = self.LargeConv(x)
-        # x_M = self.MediumConv(x)
-        # x_S = self.SmallConv(x)
-        # Concat operation
-        # x_L = self.Concat((x_L, x_S), 1)
-        # x_M = self.Concat((x_M, x_S), 1)
-        # Compression
-        # x_S = self.SecReduction(x_S)
-        # x_M = self.ThiReduction(x_M)
-        # x_L = self.ThiReduction(x_L)
-
-        # for i in range(self.repeat):
-        #     x_L = self.LargeConv(x_L)
-        #     x_M = self.MediumConv(x_M)
-        #     x_S = self.SmallConv(x_S)
-        #     # Concat operation
-        #     x_L = self.Concat((x_L, x_M), 1)
-        #     x_M = self.Concat((x_M, x_S), 1)
-        #     # Compression
-        #     x_S = self.SecReduction(x_S)
-        #     x_M = self.ThiReduction(x_M)
-        #     x_L = self.ThiReduction(x_L)
-
-        # x = self.Concat((x_L, x_M), 1)
-        # x = x * self.scale
-        # x = self.Concat((x, x_S), 1)
-        # x = x.permute(0, 2, 3, 1)
-        # x = self.norm(x.permute(0, 2, 3, 1))
-
-        # x = x.permute(0, 3, 1, 2)
-        # x = self.Liner_1(x)
-        # x = self.act(x)
-        # x = self.drop(x)
-        # x = self.Liner_2(x)
-
-        # return x
 
 
 class TransLayer(nn.Module):
@@ -621,7 +472,7 @@ class Attention(nn.Module):
             2]  # make torchscript happy (cannot use tensor as tuple)
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
-        # ZJH-Change
+        
         # ------------------------------------------------------------------
         # hadamard_product = q * k * self.scale
 
@@ -907,9 +758,8 @@ def transformer_blocks(block_fn, index, dim, layers, num_heads, mlp_ratio=3.,
     return blocks
 
 
-class VOLO(nn.Module):
+class DCAH(nn.Module):
     """
-    Vision Outlooker, the main class of our model
     --layers: [x,x,x,x], four blocks in two stages, the first block is outlooker, the
               other three are transformer, we set four blocks, which are easily
               applied to downstream tasks
@@ -1306,7 +1156,7 @@ def dcah_net(pretrained=False, **kwargs):
     mlp_ratios = [3, 3, 3, 3]
     downsamples = [True, False, False, False]
     outlook_attention = [True, False, False, False]
-    model = VOLO(layers,
+    model = DCAH(layers,
                  embed_dims=embed_dims,
                  num_heads=num_heads,
                  mlp_ratios=mlp_ratios,
