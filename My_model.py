@@ -221,12 +221,6 @@ class IntensiveBlock(nn.Module):
         )
 
         self.Concat = torch.cat
-        # self.Liner_1 = nn.Linear(2 * hidden_dim, dim)
-        # self.norm = nn.LayerNorm(4 * hidden_dim)
-        # self.act = nn.ReLU(inplace=True)
-        # self.Liner_2 = nn.Linear(dim, dim)
-        # Place for dropout layer
-        # self.drop = nn.Dropout(drop)
 
     def forward(self, x):
         # x = x.permute(0, 3, 1, 2)
@@ -316,8 +310,6 @@ class OutlookAttention(nn.Module):
         # self.attn = nn.Linear(dim, kernel_size ** 4 * num_heads)
         self.attn_computation = nn.Conv2d(dim, kernel_size ** 4 * num_heads, kernel_size=1, stride=1, padding=0,
                                           bias=False)
-        # self.attn_1 = nn.Linear(dim, 64)
-        # self.attn_2 = nn.Linear(64, kernel_size ** 4 * num_heads)
 
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
@@ -337,41 +329,11 @@ class OutlookAttention(nn.Module):
                                    h * w).permute(0, 1, 4, 3, 2)  # B,H,N,kxk,C/head
 
         attn = self.pool(x.permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
-
-        # Special-attention-1
-        # attn = self.attn_1(attn)
-        # attn = self.attn_2(attn)
-        # attn = self.attn(attn)
         attn = self.attn_computation(attn.permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
-
         attn = attn.reshape(
             B, h * w, self.num_heads, self.kernel_size * self.kernel_size,
             self.kernel_size * self.kernel_size).permute(0, 2, 1, 3, 4)
 
-        # Special-attention-2
-        # attn = self.attn_computation(attn).reshape(
-        #     B, h * w, self.num_heads, self.kernel_size * self.kernel_size,
-        #     self.kernel_size * self.kernel_size).permute(0, 2, 1, 3, 4)
-
-        # Original-attention
-        # attn = self.attn(attn).reshape(
-        #     B, h * w, self.num_heads, self.kernel_size * self.kernel_size,
-        #        self.kernel_size * self.kernel_size).permute(0, 2, 1, 3, 4)  # B,H,N,kxk,kxk
-
-        # Neighbour-attention
-        # ----------------------------------------------------------------------------------------------
-        # Neighbour = attn.mean(dim=-3, keepdim=True)
-        # Neighbour = Neighbour.repeat(self.padding, self.padding, h * w, self.padding, self.padding)
-        # attn = torch.mul(Neighbour, attn)
-        # attn = attn.mean(dim=-2, keepdim=True).mean(dim=-1, keepdim=True).repeat(self.padding, self.padding,
-        #                                                                          self.padding,
-        #                                                                          self.kernel_size * self.kernel_size,
-        #                                                                          self.kernel_size * self.kernel_size)
-        # attn = attn.mean(dim=-2, keepdim=True).repeat(self.padding, self.padding,
-        #                                               self.padding,
-        #                                               self.kernel_size * self.kernel_size,
-        #                                               self.padding)
-        # ----------------------------------------------------------------------------------------------
         attn = attn * self.scale
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
@@ -698,10 +660,6 @@ def Intensive_blocks(block_fn, dim, layers):
     return: Intensive layers
     """
     blocks = []
-    # for block_idx in range(layers[index] // 2):
-    #     # block_dpr = drop_path_rate * (block_idx +
-    #     #                               sum(layers[:index])) / (sum(layers) - 1)
-    #     blocks.append(block_fn(dim))
     blocks.append(block_fn(dim, layers))
     blocks = nn.Sequential(*blocks)
 
@@ -882,14 +840,7 @@ class DCAH(nn.Module):
                 num_features = num_features // 2
 
         self.first_AttentionCompress = nn.Conv2d(embed_dims[1], embed_dims[1] // 4, kernel_size=1, bias=False)
-        # self.first_conv = TransLayer(in_chans, embed_dims[1]//4, conv_kernel_size=7, conv_stride=2, con_padding=3)
-        # self.first_pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        # self.first_denseblock = IntensiveBlock(embed_dims[1]//4)
-        # self.first_translayer = TransLayer(2 * embed_dims[1]//4)
-
         self.second_AttentionCompress = nn.Conv2d(embed_dims[1], 2 * embed_dims[1] // 4, kernel_size=1, bias=False)
-        # self.second_denseblock = IntensiveBlock(2 * embed_dims[1]//4)
-        # self.second_translayer = TransLayer(4 * embed_dims[1]//4)
         self.globalpooling = nn.AdaptiveAvgPool2d((1, 1))
         self.Upsample = nn.Upsample(scale_factor=2, mode='bilinear')
         self.attention_norm = nn.Sigmoid()
@@ -981,9 +932,6 @@ class DCAH(nn.Module):
 
     def forward_tokens(self, x, ori_x):
         for idx, block in enumerate(self.network):
-            # if idx == 1:
-            #     feature = self.forward_assist(x)
-            # ZJH If intensive block is open, idx == 3, else idx == 2
             if idx == 2:  # add positional encoding after outlooker blocks
                 # if self.AuxOpen:
                 #     x_aist = self.forward_assist(x)
@@ -1039,28 +987,13 @@ class DCAH(nn.Module):
         x = x * self.attention_norm(attention_256.permute(0, 3, 1, 2))
         # dense_feature = self.norm_256(x.permute(0, 2, 3, 1))
         x = self.features[8](x)
-        # x = x.permute(0, 2, 3, 1)
-        # x = self.norm_256(x)
-        # x = x.permute(0, 3, 1, 2)
-        # x = self.second_denseblock(x)
-        # x = self.second_translayer(x)
-
         x = self.globalpooling(x)
 
         x = x.permute(0, 2, 3, 1)
         B, H, W, C = x.shape
         x = x.reshape(B, C)
-        #     B, H, W, C = x.shape
-        #     x = x.reshape(B, -1, C)
-        #     x = self.AssistBlock(x)
-        # return x, dense_feature
         return x
 
-    # def forward_assist_2(self, x):
-    #     B, H, W, C = x.shape
-    #     x = x.reshape(B, -1, C)
-    #     x = self.AssistBlock_2(x)
-    #     return x
 
     def forward_cls(self, x):
         B, N, C = x.shape
